@@ -54,6 +54,7 @@ var builtinFuncs = [...]struct {
 	{"delete", ODELETE},
 	{"imag", OIMAG},
 	{"len", OLEN},
+	{"likely", OLIKELY},
 	{"make", OMAKE},
 	{"new", ONEW},
 	{"panic", OPANIC},
@@ -61,6 +62,7 @@ var builtinFuncs = [...]struct {
 	{"println", OPRINTN},
 	{"real", OREAL},
 	{"recover", ORECOVER},
+	{"unlikely", OUNLIKELY},
 }
 
 // isBuiltinFuncName reports whether name matches a builtin function

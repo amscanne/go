@@ -255,6 +255,10 @@ func walkstmt(n *Node) *Node {
 		walkstmtlist(n.Nbody.Slice())
 		walkstmtlist(n.Rlist.Slice())
 
+		// Inherit likeliness of the expression.
+		n.SetLikely(n.Left.Likely() == 1)
+		n.SetUnlikely(n.Left.Likely() == -1)
+
 	case ORETURN:
 		Curfn.Func.numReturns++
 		if n.List.Len() == 0 {
@@ -480,6 +484,13 @@ opswitch:
 		ODEREF, OSPTR, OITAB, OIDATA, OADDR:
 		n.Left = walkexpr(n.Left, init)
 
+		if n.Op == ONOT {
+			// Reverse likliness of expression.
+			likely := n.Left.Likely()
+			n.SetLikely(likely == 1)
+			n.SetUnlikely(likely == -1)
+		}
+
 	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR, OLSH, ORSH:
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
@@ -543,6 +554,19 @@ opswitch:
 
 		n.Right = walkexpr(n.Right, &ll)
 		n.Right = addinit(n.Right, ll.Slice())
+
+		// Computing the likelihood here is a bit complicated. We
+		// assume that the expression is likely if both subexpressions
+		// are likely, and unlikely if either subexpression is unlikely
+		// (tweaked for OROR). Note that the individual nodes preserve
+		// their likliness, so SSA can perform suitable optimizations.
+		if n.Op == OANDAND {
+			n.SetLikely(n.Left.Likely() == 1 && n.Right.Likely() == 1)
+			n.SetUnlikely(n.Left.Likely() == -1 || n.Right.Likely() == -1)
+		} else if n.Op == OOROR {
+			n.SetLikely(n.Left.Likely() == 1 || n.Right.Likely() == 1)
+			n.SetUnlikely(n.Left.Likely() == -1 && n.Right.Likely() == -1)
+		}
 
 	case OPRINT, OPRINTN:
 		n = walkprint(n, init)
@@ -1581,6 +1605,24 @@ opswitch:
 
 	case OCALLPART:
 		n = walkpartialcall(n, init)
+
+	case OLIKELY, OUNLIKELY:
+		// Eat the call and use it to the set the likely bit on the
+		// local node. This is consumed above (see OIF in walkstmt) and
+		// used to inform code generation. Note that we don't error on
+		// potential conflicts, because it's perfectly valid to encode
+		// something like:
+		//
+		//	unlikely(likely(firstCond()) && likely(secondCond()))
+		//
+		// The OADD will naively assume that the && is likely also, but
+		// it's possible that we have knowledge that those two
+		// conditions are not co-occuring (despite being independently
+		// likely).
+		likely := n.Op == OLIKELY
+		n = walkexpr(n.Left, init)
+		n.SetLikely(likely)
+		n.SetUnlikely(!likely)
 	}
 
 	// Expressions that are constant at run time but not

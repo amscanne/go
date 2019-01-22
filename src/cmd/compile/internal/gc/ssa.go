@@ -2911,28 +2911,48 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 	case OANDAND:
 		mid := s.f.NewBlock(ssa.BlockPlain)
 		s.stmtList(cond.Ninit)
-		s.condBranch(cond.Left, mid, no, max8(likely, 0))
+		if leftLikely := cond.Left.Likely(); leftLikely != 0 {
+			s.condBranch(cond.Left, mid, no, leftLikely)
+		} else {
+			// Note: if likely==1, then both recursive calls pass
+			// 1. If likely==-1, then we don't have enough
+			// information to decide whether the first branch is
+			// likely or not. So we pass 0 for the likeliness of
+			// the first branch.
+			s.condBranch(cond.Left, mid, no, max8(likely, 0))
+		}
 		s.startBlock(mid)
-		s.condBranch(cond.Right, yes, no, likely)
+		if rightLikely := cond.Right.Likely(); rightLikely != 0 {
+			s.condBranch(cond.Right, yes, no, rightLikely)
+		} else {
+			s.condBranch(cond.Right, yes, no, likely)
+		}
 		return
-		// Note: if likely==1, then both recursive calls pass 1.
-		// If likely==-1, then we don't have enough information to decide
-		// whether the first branch is likely or not. So we pass 0 for
-		// the likeliness of the first branch.
-		// TODO: have the frontend give us branch prediction hints for
-		// OANDAND and OOROR nodes (if it ever has such info).
 	case OOROR:
 		mid := s.f.NewBlock(ssa.BlockPlain)
 		s.stmtList(cond.Ninit)
-		s.condBranch(cond.Left, yes, mid, min8(likely, 0))
+		if leftLikely := cond.Left.Likely(); leftLikely != 0 {
+			s.condBranch(cond.Left, yes, mid, leftLikely)
+		} else {
+			// Note: if likely==-1, then both recursive calls pass
+			// -1.  If likely==1, then we don't have enough info to
+			// decide the likelihood of the first branch.
+			s.condBranch(cond.Left, yes, mid, min8(likely, 0))
+		}
 		s.startBlock(mid)
-		s.condBranch(cond.Right, yes, no, likely)
+		if rightLikely := cond.Right.Likely(); rightLikely != 0 {
+			s.condBranch(cond.Right, yes, no, rightLikely)
+		} else {
+			s.condBranch(cond.Right, yes, no, likely)
+		}
 		return
-		// Note: if likely==-1, then both recursive calls pass -1.
-		// If likely==1, then we don't have enough info to decide
-		// the likelihood of the first branch.
 	case ONOT:
 		s.stmtList(cond.Ninit)
+		// This is also handled during walk, but we need to
+		// specifically ignore the context here. It's possible that
+		// someone has specified some crazy set of operations, like
+		// likely(!likely(x)) and we need to ensure that the overall
+		// evaluation is treated as not likely.
 		s.condBranch(cond.Left, no, yes, -likely)
 		return
 	}

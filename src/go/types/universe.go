@@ -119,6 +119,7 @@ const (
 	_Delete
 	_Imag
 	_Len
+	_Likely
 	_Make
 	_New
 	_Panic
@@ -126,6 +127,7 @@ const (
 	_Println
 	_Real
 	_Recover
+	_Unlikely
 
 	// package unsafe
 	_Alignof
@@ -143,21 +145,23 @@ var predeclaredFuncs = [...]struct {
 	variadic bool
 	kind     exprKind
 }{
-	_Append:  {"append", 1, true, expression},
-	_Cap:     {"cap", 1, false, expression},
-	_Close:   {"close", 1, false, statement},
-	_Complex: {"complex", 2, false, expression},
-	_Copy:    {"copy", 2, false, statement},
-	_Delete:  {"delete", 2, false, statement},
-	_Imag:    {"imag", 1, false, expression},
-	_Len:     {"len", 1, false, expression},
-	_Make:    {"make", 1, true, expression},
-	_New:     {"new", 1, false, expression},
-	_Panic:   {"panic", 1, false, statement},
-	_Print:   {"print", 0, true, statement},
-	_Println: {"println", 0, true, statement},
-	_Real:    {"real", 1, false, expression},
-	_Recover: {"recover", 0, false, statement},
+	_Append:   {"append", 1, true, expression},
+	_Cap:      {"cap", 1, false, expression},
+	_Close:    {"close", 1, false, statement},
+	_Complex:  {"complex", 2, false, expression},
+	_Copy:     {"copy", 2, false, statement},
+	_Delete:   {"delete", 2, false, statement},
+	_Imag:     {"imag", 1, false, expression},
+	_Len:      {"len", 1, false, expression},
+	_Likely:   {"likely", 1, false, expression},
+	_Make:     {"make", 1, true, expression},
+	_New:      {"new", 1, false, expression},
+	_Panic:    {"panic", 1, false, statement},
+	_Print:    {"print", 0, true, statement},
+	_Println:  {"println", 0, true, statement},
+	_Real:     {"real", 1, false, expression},
+	_Recover:  {"recover", 0, false, statement},
+	_Unlikely: {"unlikely", 1, false, expression},
 
 	_Alignof:  {"Alignof", 1, false, expression},
 	_Offsetof: {"Offsetof", 1, false, expression},
