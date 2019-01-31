@@ -459,6 +459,7 @@ const (
 	AttrDuplicateOK Attribute = 1 << iota
 	AttrCFunc
 	AttrNoSplit
+	AttrFastSplit
 	AttrLeaf
 	AttrWrapper
 	AttrNeedCtxt
@@ -506,6 +507,7 @@ func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
 func (a Attribute) MakeTypelink() bool  { return a&AttrMakeTypelink != 0 }
 func (a Attribute) CFunc() bool         { return a&AttrCFunc != 0 }
 func (a Attribute) NoSplit() bool       { return a&AttrNoSplit != 0 }
+func (a Attribute) FastSplit() bool     { return a&AttrFastSplit != 0 }
 func (a Attribute) Leaf() bool          { return a&AttrLeaf != 0 }
 func (a Attribute) SeenGlobl() bool     { return a&AttrSeenGlobl != 0 }
 func (a Attribute) OnList() bool        { return a&AttrOnList != 0 }
@@ -540,6 +542,7 @@ var textAttrStrings = [...]struct {
 	{bit: AttrMakeTypelink, s: ""},
 	{bit: AttrCFunc, s: "CFUNC"},
 	{bit: AttrNoSplit, s: "NOSPLIT"},
+	{bit: AttrFastSplit, s: "FASTSPLIT"},
 	{bit: AttrLeaf, s: "LEAF"},
 	{bit: AttrSeenGlobl, s: ""},
 	{bit: AttrOnList, s: ""},

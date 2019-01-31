@@ -128,6 +128,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrOnList, true)
 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+	s.Set(AttrFastSplit, flag&FASTSPLIT != 0)
 	s.Set(AttrReflectMethod, flag&REFLECTMETHOD != 0)
 	s.Set(AttrWrapper, flag&WRAPPER != 0)
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)

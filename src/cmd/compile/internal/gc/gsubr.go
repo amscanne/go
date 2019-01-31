@@ -271,6 +271,14 @@ func (f *Func) initLSym(hasBody bool) {
 	if f.ReflectMethod() {
 		flag |= obj.REFLECTMETHOD
 	}
+	if f.Pragma&Nosplit == 0 && !compiling_runtime {
+		// As long as we are not compiling the runtime itself, we allow
+		// all generated text symbols to include an optimized split
+		// check. This cannot be safely applied to the runtime, as
+		// there are many cases when the basic handler is not yet
+		// initialized.
+		flag |= obj.FASTSPLIT
+	}
 
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go

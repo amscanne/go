@@ -93,20 +93,21 @@ type Var struct {
 
 // Func contains additional per-symbol information specific to functions.
 type Func struct {
-	Args     int64      // size in bytes of argument frame: inputs and outputs
-	Frame    int64      // size in bytes of local variable frame
-	Leaf     bool       // function omits save of link register (ARM)
-	NoSplit  bool       // function omits stack split prologue
-	TopFrame bool       // function is the top of the call stack
-	Var      []Var      // detail about local variables
-	PCSP     Data       // PC → SP offset map
-	PCFile   Data       // PC → file number map (index into File)
-	PCLine   Data       // PC → line number map
-	PCInline Data       // PC → inline tree index map
-	PCData   []Data     // PC → runtime support data map
-	FuncData []FuncData // non-PC-specific runtime support data
-	File     []string   // paths indexed by PCFile
-	InlTree  []InlinedCall
+	Args      int64      // size in bytes of argument frame: inputs and outputs
+	Frame     int64      // size in bytes of local variable frame
+	Leaf      bool       // function omits save of link register (ARM)
+	NoSplit   bool       // function omits stack split prologue
+	TopFrame  bool       // function is the top of the call stack
+	FastSplit bool       // function may use fast split check
+	Var       []Var      // detail about local variables
+	PCSP      Data       // PC → SP offset map
+	PCFile    Data       // PC → file number map (index into File)
+	PCLine    Data       // PC → line number map
+	PCInline  Data       // PC → inline tree index map
+	PCData    []Data     // PC → runtime support data map
+	FuncData  []FuncData // non-PC-specific runtime support data
+	File      []string   // paths indexed by PCFile
+	InlTree   []InlinedCall
 }
 
 // TODO: Add PCData []byte and PCDataIter (similar to liblink).
@@ -578,6 +579,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			flags := r.readInt()
 			f.Leaf = flags&(1<<0) != 0
 			f.TopFrame = flags&(1<<4) != 0
+			f.FastSplit = flags&(1<<5) != 0
 			f.NoSplit = r.readInt() != 0
 			f.Var = make([]Var, r.readInt())
 			for i := range f.Var {

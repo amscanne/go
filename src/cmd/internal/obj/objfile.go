@@ -241,6 +241,9 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	if s.TopFrame() {
 		fmt.Fprintf(ctxt.Bso, "topframe ")
 	}
+	if s.FastSplit() {
+		fmt.Fprintf(ctxt.Bso, "fastsplit ")
+	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
@@ -355,6 +358,9 @@ func (w *objWriter) writeSym(s *LSym) {
 	}
 	if s.TopFrame() {
 		flags |= 1 << 4
+	}
+	if s.FastSplit() {
+		flags |= 1 << 5
 	}
 	w.writeInt(flags)
 	w.writeInt(int64(len(s.Func.Autom)))

@@ -65,6 +65,22 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	pc := uintptr(c.rip())
 	sp := uintptr(c.rsp())
 
+	// Is this a fault caused by a stack check? If yes, we fixup the stack
+	// pointer, and jump to the faultstack function directly.
+	if fs := funcPC(faultstack); gp.sigcode1 == ^fs {
+		// Make it look the like faulting PC called morestack. Note
+		// that we advance the pc by the faulting instruction here.
+		if sys.RegSize > sys.PtrSize {
+			sp -= sys.PtrSize
+			*(*uintptr)(unsafe.Pointer(sp)) = 0
+		}
+		sp -= sys.PtrSize
+		*(*uintptr)(unsafe.Pointer(sp)) = pc+4 // Skip.
+		c.set_rsp(uint64(sp))
+		c.set_rip(uint64(fs))
+		return
+	}
+
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
 		// Make it look the like faulting PC called sigpanic.
 		if sys.RegSize > sys.PtrSize {

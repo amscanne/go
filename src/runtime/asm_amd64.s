@@ -455,6 +455,10 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$0, DX
 	JMP	runtime·morestack(SB)
 
+// faultstack is a magic symbol.
+TEXT runtime·faultstack(SB),NOSPLIT,$0
+	JMP	runtime·morestack_noctxt(SB)
+
 // reflectcall: call a function with the given argument list
 // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number

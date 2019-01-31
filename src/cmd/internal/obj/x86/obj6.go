@@ -1148,6 +1148,40 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		p.To.Offset = int64(framesize) + (int64(objabi.StackGuard) - objabi.StackSmall)
 	}
 
+	// On platforms that support it efficiently, instead of a branch and
+	// additional code to handle the stack check, we generate a conditional
+	// move to a special fault address. The fault address is the address of
+	// the stackfault instruction itself, and this is handled specially as
+	// as emulated call to this instruction.
+	if cursym.FastSplit() && !cursym.NoFrame() && !cursym.CFunc() && !cursym.Func.Text.From.Sym.NeedCtxt() &&
+		ctxt.Headtype == objabi.Hlinux && ctxt.Arch.Family == sys.AMD64 {
+		// generate a fault:
+		//	MOVQ	SP, CX
+		// 	NOTQ	CX
+		//	CMOVLS	0(CX), CX
+		p = obj.Appendp(p, newprog)
+		p.As = lea
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_EXTERN
+		p.From.Sym = ctxt.Lookup("runtime.faultstack")
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_CX
+
+		p = obj.Appendp(p, newprog)
+		p.As = ANOTQ
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_CX
+
+		p = obj.Appendp(p, newprog)
+		p.As = ACMOVQLS
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = REG_CX
+		p.From.Offset = 0
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_CX
+		return p
+	}
+
 	// common
 	jls := obj.Appendp(p, newprog)
 	jls.As = AJLS

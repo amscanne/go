@@ -253,6 +253,7 @@ const _NoArgs = ^uintptr(0)
 
 func morestack()
 func morestack_noctxt()
+func faultstack()
 func rt0_go()
 
 // return0 is a stub used to return 0 from deferproc.
