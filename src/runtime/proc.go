@@ -297,9 +297,9 @@ func goparkunlock(lock *mutex, reason string, traceEv byte, traceskip int) {
 	gopark(parkunlock_c, unsafe.Pointer(lock), reason, traceEv, traceskip)
 }
 
-func goready(gp *g, traceskip int) {
+func goready(gp *g, traceskip int, wakeDefer bool) {
 	systemstack(func() {
-		ready(gp, traceskip, true)
+		ready(gp, traceskip, true, wakeDefer)
 	})
 }
 
@@ -586,7 +586,7 @@ func mcommoninit(mp *m) {
 }
 
 // Mark gp ready to run.
-func ready(gp *g, traceskip int, next bool) {
+func ready(gp *g, traceskip int, next, wakeDefer bool) {
 	if trace.enabled {
 		traceGoUnpark(gp, traceskip)
 	}
@@ -604,7 +604,7 @@ func ready(gp *g, traceskip int, next bool) {
 	// status is Gwaiting or Gscanwaiting, make Grunnable and put on runq
 	casgstatus(gp, _Gwaiting, _Grunnable)
 	runqput(_g_.m.p.ptr(), gp, next)
-	if atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
+	if !wakeDefer && atomic.Load(&sched.npidle) != 0 && atomic.Load(&sched.nmspinning) == 0 {
 		wakep()
 	}
 	_g_.m.locks--
@@ -2218,7 +2218,7 @@ top:
 	}
 	if fingwait && fingwake {
 		if gp := wakefing(); gp != nil {
-			ready(gp, 0, true)
+			ready(gp, 0, true, false)
 		}
 	}
 	if *cgo_yield != nil {

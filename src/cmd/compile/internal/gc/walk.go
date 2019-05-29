@@ -73,7 +73,41 @@ func walk(fn *Node) {
 	}
 }
 
+func foldSendRecvPairs(s []*Node) {
+	// Scan the statement list to see if there are simple send/recv channel
+	// pairs, which we transform into the wake-defer variant of channel
+	// functions. For now, these are only the simplest variant.
+	for i := 0; i < len(s)-1; i++ {
+		n := s[i]
+		m := s[i+1]
+		if n != nil && n.Op != OSEND {
+			continue // Need send first.
+		}
+		if m != nil && m.Op == ORECV {
+			init := m.Ninit
+			m.Ninit.Set(nil)
+			m.Left = walkexpr(m.Left, &init)
+			m = mkcall1(chanfn("chanrecv1wd", 2, m.Left.Type), nil, &init, m.Left, nodnil())
+			m = walkexpr(m, &init)
+			m = addinit(m, init.Slice())
+			s[i+1] = m // Save new node.
+		} else {
+			continue // No matching recv.
+		}
+
+		init := n.Ninit
+		n.Ninit.Set(nil)
+		n1 := n.Right
+		n1 = assignconv(n1, n.Left.Type.Elem(), "chan send")
+		n1 = walkexpr(n1, &init)
+		n1 = nod(OADDR, n1, nil)
+		n = mkcall1(chanfn("chansend1wd", 2, n.Left.Type), nil, &init, n.Left, n1)
+		s[i] = n // Save new node.
+	}
+}
+
 func walkstmtlist(s []*Node) {
+	foldSendRecvPairs(s)
 	for i := range s {
 		s[i] = walkstmt(s[i])
 	}

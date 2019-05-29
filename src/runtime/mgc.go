@@ -2085,7 +2085,7 @@ func gcSweep(mode gcMode) {
 	lock(&sweep.lock)
 	if sweep.parked {
 		sweep.parked = false
-		ready(sweep.g, 0, true)
+		ready(sweep.g, 0, true, false)
 	}
 	unlock(&sweep.lock)
 }

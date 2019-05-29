@@ -80,7 +80,7 @@ func readyWithTime(s *sudog, traceskip int) {
 	if s.releasetime != 0 {
 		s.releasetime = cputicks()
 	}
-	goready(s.g, traceskip)
+	goready(s.g, traceskip, false)
 }
 
 type semaProfileFlags int

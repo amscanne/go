@@ -691,7 +691,7 @@ func gcFlushBgCredit(scanWork int64) {
 			// scheduler priority to get itself always run
 			// before other goroutines and always in the
 			// fresh quantum started by GC.
-			ready(xgp, 0, false)
+			ready(xgp, 0, false, false)
 		} else {
 			// Partially satisfy this assist.
 			gp.gcAssistBytes += scanBytes

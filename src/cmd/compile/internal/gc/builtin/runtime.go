@@ -126,6 +126,9 @@ func makechan(chanType *byte, size int) (hchan chan any)
 func chanrecv1(hchan <-chan any, elem *any)
 func chanrecv2(hchan <-chan any, elem *any) bool
 func chansend1(hchan chan<- any, elem *any)
+func chanrecv1wd(hchan <-chan any, elem *any)
+func chanrecv2wd(hchan <-chan any, elem *any) bool
+func chansend1wd(hchan chan<- any, elem *any)
 func closechan(hchan any)
 
 var writeBarrier struct {

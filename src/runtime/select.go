@@ -528,7 +528,7 @@ bufsend:
 
 recv:
 	// can receive from sleeping sender (sg)
-	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
+	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2, false)
 	if debugSelect {
 		print("syncrecv: sel=", sel, " c=", c, "\n")
 	}
@@ -559,7 +559,7 @@ send:
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
 	}
-	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2)
+	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) }, 2, false)
 	if debugSelect {
 		print("syncsend: sel=", sel, " c=", c, "\n")
 	}

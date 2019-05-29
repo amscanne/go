@@ -333,7 +333,7 @@ func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
 
 func netpollgoready(gp *g, traceskip int) {
 	atomic.Xadd(&netpollWaiters, -1)
-	goready(gp, traceskip+1)
+	goready(gp, traceskip+1, false)
 }
 
 // returns true if IO is ready, or false if timedout or closed

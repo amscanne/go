@@ -122,7 +122,12 @@ func chanbuf(c *hchan, i uint) unsafe.Pointer {
 // entry point for c <- x from compiled code
 //go:nosplit
 func chansend1(c *hchan, elem unsafe.Pointer) {
-	chansend(c, elem, true, getcallerpc())
+	chansend(c, elem, true, true /* XXX */, getcallerpc())
+}
+
+//go:nosplit
+func chansend1wd(c *hchan, elem unsafe.Pointer) {
+	chansend(c, elem, true, true, getcallerpc())
 }
 
 /*
@@ -137,7 +142,7 @@ func chansend1(c *hchan, elem unsafe.Pointer) {
  * been closed.  it is easiest to loop and re-run
  * the operation; we'll see that it's now closed.
  */
-func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
+func chansend(c *hchan, ep unsafe.Pointer, block, wakeDefer bool, callerpc uintptr) bool {
 	if c == nil {
 		if !block {
 			return false
@@ -188,7 +193,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	if sg := c.recvq.dequeue(); sg != nil {
 		// Found a waiting receiver. We pass the value we want to send
 		// directly to the receiver, bypassing the channel buffer (if any).
-		send(c, sg, ep, func() { unlock(&c.lock) }, 3)
+		send(c, sg, ep, func() { unlock(&c.lock) }, 3, wakeDefer)
 		return true
 	}
 
@@ -259,7 +264,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 // Channel c must be empty and locked.  send unlocks c with unlockf.
 // sg must already be dequeued from c.
 // ep must be non-nil and point to the heap or the caller's stack.
-func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int, wakeDefer bool) {
 	if raceenabled {
 		if c.dataqsiz == 0 {
 			racesync(c, sg)
@@ -289,7 +294,7 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
-	goready(gp, skip+1)
+	goready(gp, skip+1, wakeDefer)
 }
 
 // Sends and receives on unbuffered or empty-buffered channels are the
@@ -390,19 +395,30 @@ func closechan(c *hchan) {
 		gp := glist
 		glist = glist.schedlink.ptr()
 		gp.schedlink = 0
-		goready(gp, 3)
+		goready(gp, 3, false)
 	}
 }
 
 // entry points for <- c from compiled code
 //go:nosplit
 func chanrecv1(c *hchan, elem unsafe.Pointer) {
-	chanrecv(c, elem, true)
+	chanrecv(c, elem, true, true /* XXX */)
 }
 
 //go:nosplit
 func chanrecv2(c *hchan, elem unsafe.Pointer) (received bool) {
-	_, received = chanrecv(c, elem, true)
+	_, received = chanrecv(c, elem, true, true /* XXX */)
+	return
+}
+
+//go:nosplit
+func chanrecv1wd(c *hchan, elem unsafe.Pointer) {
+	chanrecv(c, elem, true, false)
+}
+
+//go:nosplit
+func chanrecv2wd(c *hchan, elem unsafe.Pointer) (received bool) {
+	_, received = chanrecv(c, elem, true, true)
 	return
 }
 
@@ -412,7 +428,7 @@ func chanrecv2(c *hchan, elem unsafe.Pointer) (received bool) {
 // Otherwise, if c is closed, zeros *ep and returns (true, false).
 // Otherwise, fills in *ep with an element and returns (true, true).
 // A non-nil ep must point to the heap or the caller's stack.
-func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool) {
+func chanrecv(c *hchan, ep unsafe.Pointer, block, wakeDefer bool) (selected, received bool) {
 	// raceenabled: don't need to check ep, as it is always on the stack
 	// or is new memory allocated by reflect.
 
@@ -469,7 +485,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		// directly from sender. Otherwise, receive from head of queue
 		// and add sender's value to the tail of the queue (both map to
 		// the same buffer slot because the queue is full).
-		recv(c, sg, ep, func() { unlock(&c.lock) }, 3)
+		recv(c, sg, ep, func() { unlock(&c.lock) }, 3, wakeDefer)
 		return true, true
 	}
 
@@ -490,6 +506,14 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		}
 		c.qcount--
 		unlock(&c.lock)
+
+		// We deferred a previous wake: we need to wake up any waiting
+		// P's from the previous send. If we need to block below, then
+		// the defer wake will pay off because we'll schedule the woken
+		// goroutines immediately following the blocking operation.
+		if wakeDefer {
+			wakep()
+		}
 		return true, true
 	}
 
@@ -545,7 +569,7 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 // Channel c must be full and locked. recv unlocks c with unlockf.
 // sg must already be dequeued from c.
 // A non-nil ep must point to the heap or the caller's stack.
-func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
+func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int, wakeDefer bool) {
 	if c.dataqsiz == 0 {
 		if raceenabled {
 			racesync(c, sg)
@@ -585,7 +609,7 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
 	}
-	goready(gp, skip+1)
+	goready(gp, skip+1, wakeDefer)
 }
 
 // compiler implements
@@ -606,7 +630,7 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func(), skip int) {
 //	}
 //
 func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
-	return chansend(c, elem, false, getcallerpc())
+	return chansend(c, elem, false, false, getcallerpc())
 }
 
 // compiler implements
@@ -627,7 +651,7 @@ func selectnbsend(c *hchan, elem unsafe.Pointer) (selected bool) {
 //	}
 //
 func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
-	selected, _ = chanrecv(c, elem, false)
+	selected, _ = chanrecv(c, elem, false, false)
 	return
 }
 
@@ -650,18 +674,18 @@ func selectnbrecv(elem unsafe.Pointer, c *hchan) (selected bool) {
 //
 func selectnbrecv2(elem unsafe.Pointer, received *bool, c *hchan) (selected bool) {
 	// TODO(khr): just return 2 values from this function, now that it is in Go.
-	selected, *received = chanrecv(c, elem, false)
+	selected, *received = chanrecv(c, elem, false, false)
 	return
 }
 
 //go:linkname reflect_chansend reflect.chansend
 func reflect_chansend(c *hchan, elem unsafe.Pointer, nb bool) (selected bool) {
-	return chansend(c, elem, !nb, getcallerpc())
+	return chansend(c, elem, !nb, false, getcallerpc())
 }
 
 //go:linkname reflect_chanrecv reflect.chanrecv
 func reflect_chanrecv(c *hchan, nb bool, elem unsafe.Pointer) (selected bool, received bool) {
-	return chanrecv(c, elem, !nb)
+	return chanrecv(c, elem, !nb, false)
 }
 
 //go:linkname reflect_chanlen reflect.chanlen
