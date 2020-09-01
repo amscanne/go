@@ -2017,6 +2017,21 @@ func typecheck1(n *Node, top int) (res *Node) {
 		typecheckslice(n.Nbody.Slice(), ctxStmt)
 		typecheckslice(n.Rlist.Slice(), ctxStmt)
 
+	case OLIKELY, OUNLIKELY:
+		ok |= ctxExpr
+		if !onearg(n, "%v", n.Op) {
+			n.Type = nil
+			return n
+		}
+		n.Left = typecheck(n.Left, ctxExpr)
+		if !n.Left.Type.IsBoolean() {
+			yyerror("non-bool %L used for %v", n.Left, n.Op)
+		}
+		// The likely and unlikely calls will be removed during
+		// compilation, but their type must be boolean, same as their
+		// input arguments.
+		n.Type = n.Left.Type
+
 	case ORETURN:
 		ok |= ctxStmt
 		typecheckargs(n)

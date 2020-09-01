@@ -97,7 +97,7 @@ if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
 	rm -rf bin/gofmt
 	rm -rf src/runtime/race/race_*.syso
 	rm -rf api test doc misc/cgo/test misc/trace
-	rm -rf pkg/tool/*_*/{addr2line,api,cgo,cover,doc,fix,nm,objdump,pack,pprof,test2json,trace,vet}
+	rm -rf pkg/tool/*_*/{addr2line,api,cgo,cover,doc,fdo,fix,nm,objdump,pack,pprof,test2json,trace,vet}
 	rm -rf pkg/*_*/{image,database,cmd}
 	rm -rf $(find . -type d -name testdata)
 	find . -type f -name '*_test.go' -exec rm {} \;

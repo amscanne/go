@@ -93,6 +93,9 @@ var builtinCalls = []struct {
 	{"panic", `panic(0)`, `func(interface{})`},
 	{"panic", `panic("foo")`, `func(interface{})`},
 
+	{"likely", `var b bool; _ = likely(b)`, `invalid type`}, // constant
+	{"unlikely", `var b bool; _ = unlikely(b)`, `invalid type`}, // constant
+
 	{"print", `print()`, `func()`},
 	{"print", `print(0)`, `func(int)`},
 	{"print", `print(1, 2.0, "foo", true)`, `func(int, float64, string, bool)`},

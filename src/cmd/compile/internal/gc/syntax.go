@@ -151,6 +151,7 @@ const (
 	_, nodeBounded   // bounds check unnecessary
 	_, nodeHasCall   // expression contains a function call
 	_, nodeLikely    // if statement condition likely
+	_, nodeUnlikely  // if statement condition unlikely
 	_, nodeHasVal    // node.E contains a Val
 	_, nodeHasOpt    // node.E contains an Opt
 	_, nodeEmbedded  // ODCLFIELD embedded type
@@ -171,7 +172,6 @@ func (n *Node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
 func (n *Node) Transient() bool { return n.flags&nodeTransient != 0 }
 func (n *Node) Bounded() bool   { return n.flags&nodeBounded != 0 }
 func (n *Node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
-func (n *Node) Likely() bool    { return n.flags&nodeLikely != 0 }
 func (n *Node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
 func (n *Node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
 func (n *Node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
@@ -190,6 +190,7 @@ func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
 func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
 func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
 func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+func (n *Node) SetUnlikely(b bool)  { n.flags.set(nodeUnlikely, b) }
 func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
@@ -234,6 +235,18 @@ func (n *Node) MarkReadonly() {
 	// so that the SSA backend can use this information.
 	// It will be overridden later during dumpglobls.
 	n.Sym.Linksym().Type = objabi.SRODATA
+}
+
+// Likely returns -1, 0 or 1 indicating execution is unlikely, not hinted or
+// likely.
+func (n *Node) Likely() (v int8) {
+	if n.flags&nodeLikely != 0 {
+		v += 1
+	}
+	if n.flags&nodeUnlikely != 0 {
+		v += -1
+	}
+	return v
 }
 
 // Val returns the Val for the node.
@@ -738,6 +751,7 @@ const (
 	OKEY           // Left:Right (key:value in struct/array/map literal)
 	OSTRUCTKEY     // Sym:Left (key:value in struct literal, after type checking)
 	OLEN           // len(Left)
+	OLIKELY        // likely(Left)
 	OMAKE          // make(List) (before type checking converts to one of the following)
 	OMAKECHAN      // make(Type, Left) (type is chan)
 	OMAKEMAP       // make(Type, Left) (type is map)
@@ -780,6 +794,7 @@ const (
 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
 	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
 	OSELRECV2    // List = <-Right.Left: (appears as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OUNLIKELY    // unlikely(Left)
 	OIOTA        // iota
 	OREAL        // real(Left)
 	OIMAG        // imag(Left)

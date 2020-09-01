@@ -195,7 +195,14 @@ func (m *Mutex) unlockSlow(new int32) {
 	if (new+mutexLocked)&mutexLocked == 0 {
 		throw("sync: unlock of unlocked mutex")
 	}
-	if new&mutexStarving == 0 {
+	if new&mutexStarving != 0 {
+		// Starving mode: handoff mutex ownership to the next waiter, and yield
+		// our time slice so that the next waiter can start to run immediately.
+		// Note: mutexLocked is not set, the waiter will set it after wakeup.
+		// But mutex is still considered locked if mutexStarving is set,
+		// so new coming goroutines won't acquire it.
+	} else {
+		runtime_Semrelease(&m.sema, true, 1)
 		old := new
 		for {
 			// If there are no waiters or a goroutine has already
@@ -215,12 +222,24 @@ func (m *Mutex) unlockSlow(new int32) {
 			}
 			old = m.state
 		}
-	} else {
-		// Starving mode: handoff mutex ownership to the next waiter, and yield
-		// our time slice so that the next waiter can start to run immediately.
-		// Note: mutexLocked is not set, the waiter will set it after wakeup.
-		// But mutex is still considered locked if mutexStarving is set,
-		// so new coming goroutines won't acquire it.
-		runtime_Semrelease(&m.sema, true, 1)
+	}
+	old := new
+	for {
+		// If there are no waiters or a goroutine has already
+		// been woken or grabbed the lock, no need to wake anyone.
+		// In starvation mode ownership is directly handed off from unlocking
+		// goroutine to the next waiter. We are not part of this chain,
+		// since we did not observe mutexStarving when we unlocked the mutex above.
+		// So get off the way.
+		if old>>mutexWaiterShift == 0 || old&(mutexLocked|mutexWoken|mutexStarving) != 0 {
+			return
+		}
+		// Grab the right to wake someone.
+		new = (old - 1<<mutexWaiterShift) | mutexWoken
+		if atomic.CompareAndSwapInt32(&m.state, old, new) {
+			runtime_Semrelease(&m.sema, false)
+			return
+		}
+		old = m.state
 	}
 }

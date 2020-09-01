@@ -499,6 +499,12 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			check.recordBuiltinType(call.Fun, makeSig(nil, &emptyInterface))
 		}
 
+	case _Likely, _Unlikely:
+		// likely(x), unlikely(x)
+		if !isBoolean(x.typ) {
+			check.invalidArg(x.pos(), "%s is not a boolean", x)
+		}
+
 	case _Print, _Println:
 		// print(x, y, ...)
 		// println(x, y, ...)
